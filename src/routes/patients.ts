@@ -2,22 +2,20 @@ import { Router } from 'express';
 import { Role } from '@prisma/client';
 import { authenticate } from '../middlewares/authenticate';
 import { authorize } from '../middlewares/authorize';
-import { prisma } from '../utils/prisma';
+import {
+  listPatients,
+  createPatient,
+  updatePatient,
+  deletePatient,
+} from '../controllers/patient.controller';
 
 const router = Router();
 
 router.use(authenticate);
 
-router.get('/', authorize([Role.ADMIN]), async (_req, res, next) => {
-  try {
-    const patients = await prisma.patient.findMany({
-      select: { id: true, name: true, phone: true, email: true, notes: true },
-      orderBy: { name: 'asc' },
-    });
-    res.json(patients);
-  } catch (err) {
-    next(err);
-  }
-});
+router.get('/', authorize([Role.ADMIN]), listPatients);
+router.post('/', authorize([Role.ADMIN]), createPatient);
+router.patch('/:id', authorize([Role.ADMIN]), updatePatient);
+router.delete('/:id', authorize([Role.ADMIN]), deletePatient);
 
 export default router;

@@ -14,9 +14,11 @@ export async function getDailyReport(req: Request, res: Response, next: NextFunc
     const dayStart = new Date(`${date}T00:00:00.000Z`);
     const dayEnd = new Date(`${date}T23:59:59.999Z`);
 
+    // Los reportes históricos incluyen médicos inactivos: un médico dado de
+    // baja sigue contando su actividad pasada.
     const doctors = doctorId
       ? await prisma.doctor.findMany({ where: { id: doctorId } })
-      : await prisma.doctor.findMany({ where: { active: true } });
+      : await prisma.doctor.findMany({ orderBy: { name: 'asc' } });
 
     const reports = await Promise.all(
       doctors.map(async (doctor) => {
