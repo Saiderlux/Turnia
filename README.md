@@ -72,6 +72,18 @@ Con suficientes datos históricos, el sistema calcula automáticamente la duraci
 
 El criterio detrás de esto: un promedio de 2 o 3 datos puede estar sesgado por consultas atípicas. 10 registros es el mínimo para que el promedio sea representativo sin requerir semanas de operación.
 
+### ¿Cómo se valida un horario al agendar?
+
+Al crear una cita el sistema aplica tres reglas en el backend (`appointment.service.ts`), no solo en la interfaz:
+
+1. **Anti doble-agenda:** un médico no puede tener dos citas que se solapen. La verificación ignora las citas en estado `CANCELLED` y `NO_SHOW` — esos horarios quedan libres otra vez.
+2. **Descanso de 10 minutos entre citas:** dos citas consecutivas del mismo médico exigen al menos 10 minutos entre el fin de una y el inicio de la siguiente. El médico no atiende back-to-back: necesita margen para cerrar una consulta y preparar la siguiente. Por eso el selector de hora ofrece los slots con cadencia `slotDuration + 10` (un médico de 30 min: 8:00, 8:40, 9:20…).
+3. **No se agenda en el pasado:** se rechaza cualquier `scheduledAt` anterior al momento actual. En el selector, las horas ya pasadas aparecen deshabilitadas ("— pasado") y la fecha mínima es hoy.
+
+Si una regla se incumple, la API responde con un mensaje legible (409 para conflicto o descanso, 400 para fecha pasada) que la interfaz muestra inline en el formulario, sin `alert()`.
+
+El criterio: estas validaciones viven en el servicio para que ninguna ruta —ni un cliente que llame directo a la API— pueda saltárselas. La interfaz las refleja (slots deshabilitados, fecha mínima) como prevención de errores, pero la fuente de verdad es el backend.
+
 ### ¿Quién puede cancelar?
 
 El admin y el doctor pueden cancelar. La cancelación siempre requiere una razón (campo obligatorio). Toda cancelación queda registrada en `appointment_events` con quién la ejecutó, cuándo y por qué — esto garantiza trazabilidad completa.
