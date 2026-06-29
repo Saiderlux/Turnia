@@ -4,6 +4,10 @@ import { ConflictError, NotFoundError, ValidationError, BadRequestError, Forbidd
 import { recalculateAvgDuration } from './doctor.service';
 import { format } from 'date-fns';
 
+// Minutos de descanso obligatorios entre citas consecutivas de un mismo médico.
+const BUFFER_MINUTES = 10;
+const BUFFER_MS = BUFFER_MINUTES * 60 * 1000;
+
 type Transitions = Partial<Record<AppointmentStatus, AppointmentStatus[]>>;
 
 const TRANSITIONS: Transitions = {
@@ -57,8 +61,13 @@ export async function createAppointment(
   const patient = await prisma.patient.findUnique({ where: { id: patientId } });
   if (!patient) throw new NotFoundError('Paciente no encontrado');
 
+  // No se permite agendar en una fecha u hora ya pasada.
+  if (scheduledAt.getTime() < Date.now()) {
+    throw new BadRequestError('No se puede agendar una cita en una fecha u hora pasada.');
+  }
+
   const slotEnd = new Date(scheduledAt.getTime() + doctor.slotDuration * 60 * 1000);
-  // Fetch appointments within a 4-hour window around the new slot
+  // Ventana amplia alrededor del nuevo slot para traer posibles conflictos.
   const windowStart = new Date(scheduledAt.getTime() - 4 * 60 * 60 * 1000);
   const windowEnd = new Date(slotEnd.getTime() + 4 * 60 * 60 * 1000);
 
@@ -70,16 +79,19 @@ export async function createAppointment(
     },
   });
 
+  // Dos citas deben tener al menos BUFFER_MINUTES entre el fin de una y el inicio
+  // de la otra: el médico no atiende back-to-back.
   const conflicts = nearby.filter((a) => {
     const aStart = a.scheduledAt!.getTime();
     const aEnd = aStart + a.slotDuration * 60 * 1000;
-    return aStart < slotEnd.getTime() && aEnd > scheduledAt.getTime();
+    return aEnd + BUFFER_MS > scheduledAt.getTime() && aStart < slotEnd.getTime() + BUFFER_MS;
   });
 
   if (conflicts.length > 0) {
-    const conflictTime = format(conflicts[0].scheduledAt!, 'HH:mm');
+    const conflictTime = format(conflicts[0].scheduledAt!, 'h:mm a');
     throw new ConflictError(
-      `El Dr. ${doctor.name} ya tiene una cita a las ${conflictTime}. Elige otro horario.`
+      `${doctor.name} ya tiene una cita a las ${conflictTime}. ` +
+        `Se requieren ${BUFFER_MINUTES} minutos entre citas; elige otro horario.`
     );
   }
 
