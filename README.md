@@ -76,23 +76,23 @@ El criterio detrás de esto: un promedio de 2 o 3 datos puede estar sesgado por 
 
 Al crear una cita el sistema aplica tres reglas en el backend (`appointment.service.ts`), no solo en la interfaz:
 
-1. **Anti doble-agenda:** un médico no puede tener dos citas que se solapen. La verificación ignora las citas en estado `CANCELLED` y `NO_SHOW` — esos horarios quedan libres otra vez.
+1. **Anti doble-agenda:** un médico no puede tener dos citas que se solapen. La verificación ignora las citas en estado `CANCELLED` y `NO_SHOW`, ya que esos horarios quedan libres otra vez.
 2. **Descanso de 10 minutos entre citas:** dos citas consecutivas del mismo médico exigen al menos 10 minutos entre el fin de una y el inicio de la siguiente. El médico no atiende back-to-back: necesita margen para cerrar una consulta y preparar la siguiente. Por eso el selector de hora ofrece los slots con cadencia `slotDuration + 10` (un médico de 30 min: 8:00, 8:40, 9:20…).
-3. **No se agenda en el pasado:** se rechaza cualquier `scheduledAt` anterior al momento actual. En el selector, las horas ya pasadas aparecen deshabilitadas ("— pasado") y la fecha mínima es hoy.
+3. **No se agenda en el pasado:** se rechaza cualquier `scheduledAt` anterior al momento actual. En el selector, las horas ya pasadas aparecen deshabilitadas y la fecha mínima es hoy.
 
 Si una regla se incumple, la API responde con un mensaje legible (409 para conflicto o descanso, 400 para fecha pasada) que la interfaz muestra inline en el formulario, sin `alert()`.
 
-El criterio: estas validaciones viven en el servicio para que ninguna ruta —ni un cliente que llame directo a la API— pueda saltárselas. La interfaz las refleja (slots deshabilitados, fecha mínima) como prevención de errores, pero la fuente de verdad es el backend.
+El criterio: estas validaciones viven en el servicio para que ninguna ruta (ni un cliente que llame directo a la API) pueda saltárselas. La interfaz las refleja (slots deshabilitados, fecha mínima) como prevención de errores, pero la fuente de verdad es el backend.
 
 ### ¿Quién puede cancelar?
 
-El admin y el doctor pueden cancelar. La cancelación siempre requiere una razón (campo obligatorio). Toda cancelación queda registrada en `appointment_events` con quién la ejecutó, cuándo y por qué — esto garantiza trazabilidad completa.
+El admin y el doctor pueden cancelar. La cancelación siempre requiere una razón (campo obligatorio). Toda cancelación queda registrada en `appointment_events` con quién la ejecutó, cuándo y por qué. Esto garantiza trazabilidad completa.
 
 El criterio: quitarle el permiso al doctor crea un cuello de botella operativo (el doctor tiene una urgencia, el admin no está disponible, los pacientes esperan). El control está en la trazabilidad, no en el permiso. Si el doctor cancela, el admin lo ve inmediatamente en el registro de eventos.
 
 ### ¿Los walk-ins tienen su propio flujo o entran al mismo?
 
-Los walk-ins tienen su propio carril. Se registran con `type: WALKIN` y nacen directamente en estado `WAITING` — nunca pasan por `SCHEDULED`. Aparecen en la agenda del médico como cola de espera separada, sin ocupar un slot de tiempo. El admin los canaliza con el médico cuando hay un hueco natural entre citas. Una vez que el admin los manda a consulta (transición a `IN_CONSULTATION`), el doctor los ve igual que cualquier cita.
+Los walk-ins tienen su propio carril. Se registran con `type: WALKIN` y nacen directamente en estado `WAITING`, sin pasar nunca por `SCHEDULED`. Aparecen en la agenda del médico como cola de espera separada, sin ocupar un slot de tiempo. El admin los canaliza con el médico cuando hay un hueco natural entre citas. Una vez que el admin los manda a consulta (transición a `IN_CONSULTATION`), el doctor los ve igual que cualquier cita.
 
 El criterio: asignarles un slot fijo desplazaría citas ya agendadas o desperdiciaría tiempo si no llegan. La cola de espera separada permite absorberlos sin romper la agenda programada.
 
@@ -100,13 +100,13 @@ El criterio: asignarles un slot fijo desplazaría citas ya agendadas o desperdic
 
 Una cita se marca automáticamente como `NO_SHOW` si no ha pasado al estado `ARRIVED` dentro de los 15 minutos posteriores a su hora programada. Un cron job revisa esto cada minuto. El cambio queda registrado en `appointment_events` con `changedById: null`, que indica que fue el sistema y no un usuario quien lo ejecutó.
 
-Si el admin olvidó hacer check-in pero el paciente ya está en consulta (estado `IN_CONSULTATION` o posterior), el timer no aplica — el cron solo toca citas que siguen en `SCHEDULED`.
+Si el admin olvidó hacer check-in pero el paciente ya está en consulta (estado `IN_CONSULTATION` o posterior), el timer no aplica: el cron solo toca citas que siguen en `SCHEDULED`.
 
 Un no-show automático puede revertirse manualmente por el admin (transición `NO_SHOW → SCHEDULED`), una corrección reservada exclusivamente al admin para los errores de registro.
 
 ### Datos de demostración vs. datos hardcodeados
 
-El seed incluye 8 médicos y 3 pacientes como datos de demostración para poder probar el sistema sin configuración adicional. Estos no son datos hardcodeados por diseño — el sistema permite registrar nuevos médicos y pacientes desde el panel admin sin tocar código ni base de datos.
+El seed incluye 8 médicos y 3 pacientes como datos de demostración para poder probar el sistema sin configuración adicional. Estos no son datos hardcodeados por diseño. El sistema permite registrar nuevos médicos y pacientes desde el panel admin sin tocar código ni base de datos.
 
 La distinción es importante: un médico nuevo registrado desde el panel recibe automáticamente un usuario con credenciales temporales (contraseña: `turnia2024`) y queda disponible para agendar citas de inmediato. Un paciente nuevo se puede registrar en el mismo flujo de agendamiento, sin salir del modal de nueva cita.
 
@@ -114,7 +114,7 @@ Los datos del seed existen para que el evaluador pueda probar el flujo completo 
 
 ## Log de decisiones
 
-El proceso de decisión —cómo se interpretó el brief, qué alternativas se evaluaron y por qué se eligió cada camino— está en [`conversations.json`](./conversations.json): la exportación de la conversación de planeación, con timestamps reales (27–29 de junio de 2026).
+El proceso de decisión (cómo se interpretó el brief, qué alternativas se evaluaron y por qué se eligió cada camino) está en [`conversations.json`](./conversations.json): la exportación de la conversación de planeación, con timestamps reales (del 27 al 29 de junio de 2026).
 
 Cubre las decisiones de producto y de modelado: la interpretación del caso, el flujo de walk-ins, la regla del promedio histórico, el modelo de datos y el ERD, los tres casos de error visibles y el alcance que se priorizó. Las convenciones técnicas que guiaron la implementación quedaron en [`CLAUDE.md`](./CLAUDE.md), y el porqué de cada cambio posterior está en los mensajes de commit del historial de git.
 
@@ -188,4 +188,4 @@ erDiagram
 
 **Zona horaria UTC.** Los límites de día en `GET /api/appointments` y en el reporte diario se calculan con fronteras UTC (`${date}T00:00:00.000Z`). En una clínica con un offset marcadamente negativo (por ejemplo UTC-6), una cita de la tarde-noche puede caer en el día UTC siguiente y aparecer en la fecha equivocada o contarse en el reporte del día que no corresponde. Un despliegue fuera de UTC necesita una estrategia de zona horaria consistente: operar en la zona de la clínica o pasar un offset explícito en las consultas.
 
-**Enumeración por timing en login.** El endpoint de login corta el `bcrypt.compare` cuando el email no existe, lo que produce una diferencia de tiempo medible entre "email desconocido" y "contraseña incorrecta". Eso permite enumerar usuarios válidos observando la latencia de la respuesta. La mitigación es ejecutar siempre una comparación bcrypt contra un hash dummy para igualar el tiempo de respuesta en ambos casos.
+**Se puede adivinar qué correos están registrados midiendo cuánto tarda el login.** Hoy, si el correo no existe, el servidor responde de inmediato; si el correo existe pero la contraseña es incorrecta, tarda un poco más, porque sí llega a verificar la contraseña (esa verificación es lenta a propósito). Esa diferencia de tiempo delata cuáles correos son reales. Para cerrarlo, los dos casos deberían tardar lo mismo: habría que verificar la contraseña siempre, incluso contra un valor falso cuando el correo no existe, para que el tiempo de respuesta no revele nada.

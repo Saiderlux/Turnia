@@ -9,7 +9,7 @@
 ## Convenciones
 - Todos los errores del dominio se lanzan como instancias de clases custom en src/utils/errors.ts
 - Las respuestas de error siguen el formato: { error: { code, message, details? } }
-- Las queries a BD van siempre a través de Prisma — sin SQL raw excepto donde se documente explícitamente
+- Las queries a BD van siempre a través de Prisma, sin SQL raw excepto donde se documente explícitamente
 - Los campos de tipo password nunca se incluyen en respuestas de la API
 - Los enums de TypeScript deben coincidir exactamente con los enums de Prisma
 
@@ -21,4 +21,4 @@
 ## Lo que NO hacer
 - No usar alert() ni console.error como manejo de errores visible al usuario
 - No hardcodear credenciales ni UUIDs de seed en lógica de negocio
-- No crear endpoints DELETE — las cancelaciones van por PATCH /status
+- No crear endpoints DELETE; las cancelaciones van por PATCH /status
