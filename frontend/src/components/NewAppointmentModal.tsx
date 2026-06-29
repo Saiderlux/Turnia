@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import api from '../lib/api';
 import type { Appointment, Doctor, Patient } from '../types';
+import { format } from 'date-fns';
 import { buildDaySlots, type Slot } from '../lib/slots';
 import { PatientSearchSelect } from './PatientSearchSelect';
 
@@ -29,6 +30,7 @@ export function NewAppointmentModal({
   const [submitting, setSubmitting] = useState(false);
 
   const doctor = doctors.find((d) => d.id === doctorId);
+  const minDate = format(new Date(), 'yyyy-MM-dd');
 
   // Recalcular slots cuando cambia médico o fecha
   useEffect(() => {
@@ -117,7 +119,7 @@ export function NewAppointmentModal({
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: error ? '12px' : '20px' }}>
             <div className="field">
               <label className="label" htmlFor="na-date">Fecha</label>
-              <input id="na-date" className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <input id="na-date" className="input" type="date" min={minDate} value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
             <div className="field">
               <label className="label" htmlFor="na-time">Hora</label>
@@ -130,9 +132,9 @@ export function NewAppointmentModal({
               >
                 <option value="">{loadingSlots ? 'Cargando…' : 'Elegir hora…'}</option>
                 {slots.map((s) => (
-                  <option key={s.iso} value={s.iso} disabled={s.occupied}>
+                  <option key={s.iso} value={s.iso} disabled={s.occupied || s.past}>
                     {s.label}
-                    {s.occupied ? '  — ocupado' : ''}
+                    {s.occupied ? '  — ocupado' : s.past ? '  — pasado' : ''}
                   </option>
                 ))}
               </select>
