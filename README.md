@@ -112,6 +112,12 @@ La distinción es importante: un médico nuevo registrado desde el panel recibe 
 
 Los datos del seed existen para que el evaluador pueda probar el flujo completo sin pasos previos de configuración. En un entorno real, el seed se reemplazaría por el primer usuario admin creado durante el onboarding.
 
+## Log de decisiones
+
+El proceso de decisión —cómo se interpretó el brief, qué alternativas se evaluaron y por qué se eligió cada camino— está en [`conversations.json`](./conversations.json): la exportación de la conversación de planeación, con timestamps reales (27–29 de junio de 2026).
+
+Cubre las decisiones de producto y de modelado: la interpretación del caso, el flujo de walk-ins, la regla del promedio histórico, el modelo de datos y el ERD, los tres casos de error visibles y el alcance que se priorizó. Las convenciones técnicas que guiaron la implementación quedaron en [`CLAUDE.md`](./CLAUDE.md), y el porqué de cada cambio posterior está en los mensajes de commit del historial de git.
+
 ## Diagrama de datos
 
 ```mermaid
