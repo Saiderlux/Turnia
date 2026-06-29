@@ -124,20 +124,24 @@ export function AdminAgendaPage() {
         })}
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <button type="button" className="btn btn-primary btn-block" onClick={() => setModal('new')}>
-          Nueva cita
-        </button>
-        <button type="button" className="btn btn-outline btn-block" onClick={() => setModal('walkin')}>
-          Registrar walk-in
-        </button>
-      </div>
+    </>
+  );
+
+  // Acciones fijas al fondo del sidebar: no scrollean con la lista de médicos.
+  const sidebarActions = (
+    <>
+      <button type="button" className="btn btn-primary btn-block" onClick={() => setModal('new')}>
+        Nueva cita
+      </button>
+      <button type="button" className="btn btn-outline btn-block" onClick={() => setModal('walkin')}>
+        Registrar walk-in
+      </button>
     </>
   );
 
   return (
     <div className="app-shell">
-      <Sidebar extras={sidebarExtras} />
+      <Sidebar extras={sidebarExtras} actions={sidebarActions} />
 
       <main className="main">
         <div className="main-inner">

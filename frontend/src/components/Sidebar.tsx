@@ -4,10 +4,11 @@ import { getUser, clearAuth } from '../lib/auth';
 
 interface Props {
   extras?: ReactNode;
+  actions?: ReactNode;
 }
 
 /** Chrome principal de las vistas de admin: logo, navegación y sesión. */
-export function Sidebar({ extras }: Props) {
+export function Sidebar({ extras, actions }: Props) {
   const user = getUser();
   const navigate = useNavigate();
 
@@ -48,6 +49,8 @@ export function Sidebar({ extras }: Props) {
 
         {extras}
       </div>
+
+      {actions && <div className="sidebar-actions">{actions}</div>}
 
       <div className="sidebar-footer">
         <div style={{ minWidth: 0 }}>
