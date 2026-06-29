@@ -64,29 +64,41 @@ El usuario doctor está vinculado al primer médico del seed (Dr. Carlos Méndez
 
 ## Decisiones de diseño
 
-### Duración de cita
+### ¿Cuánto dura una cita?
 
-El MVP usa un slot fijo de 30 minutos por médico, editable por el admin. En paralelo el sistema calcula un promedio histórico real a partir de los timestamps `started_at → ended_at`, pero ese promedio solo se usa como referencia cuando el médico acumula al menos 10 consultas con ambos timestamps, y descartando duraciones menores a 5 o mayores a 90 minutos.
+Slot fijo de 30 minutos por médico, configurable por el admin desde el panel. Este valor se copia al momento de crear la cita (campo `slotDuration` en `appointments`) para que cambios futuros no afecten citas ya agendadas.
 
-El criterio es no actuar sobre datos ruidosos: dos o tres consultas, o un cambio de estado mal registrado, no deberían mover la estimación del slot. El umbral de 10 registros y la banda 5–90 filtran el ruido estadístico y los errores operativos. Además, el médico nunca interactúa con el sistema para registrar tiempos: todo se deriva de los cambios de estado que hace el admin, así que la métrica es un subproducto de la operación normal y no captura de datos adicional.
+Con suficientes datos históricos, el sistema calcula automáticamente la duración promedio real por médico usando los timestamps `started_at` y `ended_at` de cada consulta. El promedio se activa solo cuando el médico acumula mínimo 10 consultas con ambos timestamps completos, y excluye registros menores a 5 minutos o mayores a 90 (errores de registro). Mientras no se alcanza ese umbral, el sistema usa el slot fijo. El campo `avg_duration` en la tabla `doctors` refleja este valor y se recalcula automáticamente cada vez que una cita se marca como atendida.
 
-### Walk-ins
+El criterio detrás de esto: un promedio de 2 o 3 datos puede estar sesgado por consultas atípicas. 10 registros es el mínimo para que el promedio sea representativo sin requerir semanas de operación.
 
-Los walk-ins no usan slots ni bloquean tiempo en la agenda. Nacen en estado `WAITING` y se muestran como una cola separada; el admin decide cuándo mandarlos a consulta según los huecos naturales del día.
+### ¿Quién puede cancelar?
 
-El criterio es que un walk-in es por definición no agendado. Meterlo en la grilla de slots generaría conflictos falsos o desplazaría a pacientes con cita. Mantenerlos en una cola paralela preserva la integridad de la agenda programada —la validación anti doble-agenda solo considera citas con hora— mientras el paciente en espera sigue visible para el médico.
+El admin y el doctor pueden cancelar. La cancelación siempre requiere una razón (campo obligatorio). Toda cancelación queda registrada en `appointment_events` con quién la ejecutó, cuándo y por qué — esto garantiza trazabilidad completa.
 
-### Cancelación
+El criterio: quitarle el permiso al doctor crea un cuello de botella operativo (el doctor tiene una urgencia, el admin no está disponible, los pacientes esperan). El control está en la trazabilidad, no en el permiso. Si el doctor cancela, el admin lo ve inmediatamente en el registro de eventos.
 
-Pueden cancelar el admin y el doctor, siempre con una razón obligatoria. Cada cancelación genera un evento trazable en `appointment_events` con quién canceló, cuándo y por qué. No existe DELETE físico: las cancelaciones son una transición de estado vía `PATCH /status`.
+### ¿Los walk-ins tienen su propio flujo o entran al mismo?
 
-El criterio es que en una clínica "por qué se canceló esto" es una pregunta operativa y a veces legal. Una transición suave con razón obligatoria conserva el historial completo y permite que el reporte del día cuente correctamente una cita cancelada y luego reagendada. Un borrado físico destruiría esa traza de auditoría.
+Los walk-ins tienen su propio carril. Se registran con `type: WALKIN` y nacen directamente en estado `WAITING` — nunca pasan por `SCHEDULED`. Aparecen en la agenda del médico como cola de espera separada, sin ocupar un slot de tiempo. El admin los canaliza con el médico cuando hay un hueco natural entre citas. Una vez que el admin los manda a consulta (transición a `IN_CONSULTATION`), el doctor los ve igual que cualquier cita.
 
-### No-show
+El criterio: asignarles un slot fijo desplazaría citas ya agendadas o desperdiciaría tiempo si no llegan. La cola de espera separada permite absorberlos sin romper la agenda programada.
 
-El admin hace check-in manual (`→ ARRIVED`) cuando el paciente llega. Si una cita no avanza a `ARRIVED` dentro de los 15 minutos posteriores a su hora programada, el sistema la marca automáticamente como `NO_SHOW`. El timer no aplica si la cita ya pasó a `IN_CONSULTATION` o un estado posterior, y un no-show automático puede revertirse manualmente por el admin (`NO_SHOW → SCHEDULED`). La acción automática registra el evento con `changed_by = null`.
+### ¿Qué significa "no llegó"?
 
-El criterio es distinguir "el paciente no vino" de "el admin no actualizó la pantalla". La ventana de gracia de 15 minutos y la regla de que solo las citas en `SCHEDULED` son elegibles evitan castigar al paciente por el retraso de registro del admin. El `changed_by = null` deja el evento auditable y distinguible de una acción humana, y la reversión manual da control sobre el error de registro inevitable.
+Una cita se marca automáticamente como `NO_SHOW` si no ha pasado al estado `ARRIVED` dentro de los 15 minutos posteriores a su hora programada. Un cron job revisa esto cada minuto. El cambio queda registrado en `appointment_events` con `changedById: null`, que indica que fue el sistema y no un usuario quien lo ejecutó.
+
+Si el admin olvidó hacer check-in pero el paciente ya está en consulta (estado `IN_CONSULTATION` o posterior), el timer no aplica — el cron solo toca citas que siguen en `SCHEDULED`.
+
+Un no-show automático puede revertirse manualmente por el admin (transición `NO_SHOW → SCHEDULED`), una corrección reservada exclusivamente al admin para los errores de registro.
+
+### Datos de demostración vs. datos hardcodeados
+
+El seed incluye 8 médicos y 3 pacientes como datos de demostración para poder probar el sistema sin configuración adicional. Estos no son datos hardcodeados por diseño — el sistema permite registrar nuevos médicos y pacientes desde el panel admin sin tocar código ni base de datos.
+
+La distinción es importante: un médico nuevo registrado desde el panel recibe automáticamente un usuario con credenciales temporales (contraseña: `turnia2024`) y queda disponible para agendar citas de inmediato. Un paciente nuevo se puede registrar en el mismo flujo de agendamiento, sin salir del modal de nueva cita.
+
+Los datos del seed existen para que el evaluador pueda probar el flujo completo sin pasos previos de configuración. En un entorno real, el seed se reemplazaría por el primer usuario admin creado durante el onboarding.
 
 ## Diagrama de datos
 
