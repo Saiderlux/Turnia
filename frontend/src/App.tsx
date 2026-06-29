@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoginPage } from './pages/LoginPage';
 import { AdminAgendaPage } from './pages/AdminAgendaPage';
+import { PatientsPage } from './pages/PatientsPage';
+import { DoctoresPage } from './pages/DoctoresPage';
 import { ReportesPage } from './pages/ReportesPage';
 import { DoctorAgendaPage } from './pages/DoctorAgendaPage';
 
@@ -16,6 +18,22 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={['ADMIN']}>
               <AdminAgendaPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/pacientes"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN']}>
+              <PatientsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/doctores"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN']}>
+              <DoctoresPage />
             </ProtectedRoute>
           }
         />

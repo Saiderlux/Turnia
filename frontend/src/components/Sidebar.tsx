@@ -26,12 +26,24 @@ export function Sidebar({ extras }: Props) {
         </div>
 
         <nav className="sidebar-section">
-          <NavLink to="/admin/agenda" className={({ isActive }) => `nav-link${isActive ? ' is-active' : ''}`}>
-            Agenda
-          </NavLink>
-          <NavLink to="/admin/reportes" className={({ isActive }) => `nav-link${isActive ? ' is-active' : ''}`}>
-            Reportes
-          </NavLink>
+          {user?.role === 'ADMIN' && (
+            <>
+              <NavLink to="/admin/agenda" className={({ isActive }) => `nav-link${isActive ? ' is-active' : ''}`}>
+                Agenda
+              </NavLink>
+              <NavLink to="/admin/pacientes" className={({ isActive }) => `nav-link${isActive ? ' is-active' : ''}`}>
+                Pacientes
+              </NavLink>
+              <NavLink to="/admin/doctores" className={({ isActive }) => `nav-link${isActive ? ' is-active' : ''}`}>
+                Doctores
+              </NavLink>
+            </>
+          )}
+          {(user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
+            <NavLink to="/admin/reportes" className={({ isActive }) => `nav-link${isActive ? ' is-active' : ''}`}>
+              Reportes
+            </NavLink>
+          )}
         </nav>
 
         {extras}

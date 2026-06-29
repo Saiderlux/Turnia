@@ -2,10 +2,10 @@ import { useState, useEffect, type FormEvent } from 'react';
 import api from '../lib/api';
 import type { Appointment, Doctor, Patient } from '../types';
 import { buildDaySlots, type Slot } from '../lib/slots';
+import { PatientSearchSelect } from './PatientSearchSelect';
 
 interface Props {
   doctors: Doctor[];
-  patients: Patient[];
   defaultDoctorId: string;
   defaultDate: string; // yyyy-MM-dd
   onClose: () => void;
@@ -14,14 +14,13 @@ interface Props {
 
 export function NewAppointmentModal({
   doctors,
-  patients,
   defaultDoctorId,
   defaultDate,
   onClose,
   onCreated,
 }: Props) {
   const [doctorId, setDoctorId] = useState(defaultDoctorId);
-  const [patientId, setPatientId] = useState('');
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [date, setDate] = useState(defaultDate);
   const [slotIso, setSlotIso] = useState('');
   const [slots, setSlots] = useState<Slot[]>([]);
@@ -54,7 +53,7 @@ export function NewAppointmentModal({
     };
   }, [doctorId, date, doctor]);
 
-  const canSubmit = Boolean(doctorId && patientId && slotIso) && !submitting;
+  const canSubmit = Boolean(doctorId && selectedPatient && slotIso) && !submitting;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -62,7 +61,7 @@ export function NewAppointmentModal({
     setSubmitting(true);
     setError('');
     try {
-      await api.post('/appointments', { doctorId, patientId, scheduledAt: slotIso });
+      await api.post('/appointments', { doctorId, patientId: selectedPatient!.id, scheduledAt: slotIso });
       onCreated();
       onClose();
     } catch (err: unknown) {
@@ -111,15 +110,8 @@ export function NewAppointmentModal({
           </div>
 
           <div className="field" style={{ marginBottom: '16px' }}>
-            <label className="label" htmlFor="na-patient">Paciente</label>
-            <select id="na-patient" className="input" value={patientId} onChange={(e) => setPatientId(e.target.value)}>
-              <option value="">Seleccionar paciente…</option>
-              {patients.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} · {p.phone}
-                </option>
-              ))}
-            </select>
+            <label className="label">Paciente</label>
+            <PatientSearchSelect selectedPatient={selectedPatient} onSelect={setSelectedPatient} />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: error ? '12px' : '20px' }}>

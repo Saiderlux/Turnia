@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import api from '../lib/api';
 import type { Doctor, Patient } from '../types';
+import { PatientSearchSelect } from './PatientSearchSelect';
 
 interface Props {
   doctors: Doctor[];
-  patients: Patient[];
   defaultDoctorId: string;
   onClose: () => void;
   onCreated: () => void;
@@ -14,13 +14,13 @@ interface Props {
  * Registro de walk-in: nace en estado "En espera" sin hora.
  * No bloquea slots en la agenda.
  */
-export function WalkinModal({ doctors, patients, defaultDoctorId, onClose, onCreated }: Props) {
+export function WalkinModal({ doctors, defaultDoctorId, onClose, onCreated }: Props) {
   const [doctorId, setDoctorId] = useState(defaultDoctorId);
-  const [patientId, setPatientId] = useState('');
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const canSubmit = Boolean(doctorId && patientId) && !submitting;
+  const canSubmit = Boolean(doctorId && selectedPatient) && !submitting;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -28,7 +28,7 @@ export function WalkinModal({ doctors, patients, defaultDoctorId, onClose, onCre
     setSubmitting(true);
     setError('');
     try {
-      await api.post('/appointments/walkin', { doctorId, patientId });
+      await api.post('/appointments/walkin', { doctorId, patientId: selectedPatient!.id });
       onCreated();
       onClose();
     } catch (err: unknown) {
@@ -81,15 +81,8 @@ export function WalkinModal({ doctors, patients, defaultDoctorId, onClose, onCre
           </div>
 
           <div className="field" style={{ marginBottom: error ? '12px' : '20px' }}>
-            <label className="label" htmlFor="wk-patient">Paciente</label>
-            <select id="wk-patient" className="input" value={patientId} onChange={(e) => setPatientId(e.target.value)}>
-              <option value="">Seleccionar paciente…</option>
-              {patients.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} · {p.phone}
-                </option>
-              ))}
-            </select>
+            <label className="label">Paciente</label>
+            <PatientSearchSelect selectedPatient={selectedPatient} onSelect={setSelectedPatient} />
           </div>
 
           {error && (

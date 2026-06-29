@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { format, parseISO } from 'date-fns';
 import api from '../lib/api';
-import type { Appointment, AppointmentStatus, Doctor, Patient } from '../types';
+import type { Appointment, AppointmentStatus, Doctor } from '../types';
 import { Sidebar } from '../components/Sidebar';
 import { WeekSelector } from '../components/WeekSelector';
 import { AgendaBoard } from '../components/AgendaBoard';
@@ -19,7 +19,6 @@ function pendingLoad(appts: Appointment[]): number {
 
 export function AdminAgendaPage() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedDoctorId, setSelectedDoctorId] = useState('');
   const [date, setDate] = useState(todayStr);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -29,16 +28,15 @@ export function AdminAgendaPage() {
 
   const selectedDoctor = doctors.find((d) => d.id === selectedDoctorId);
 
-  // Carga inicial de médicos y pacientes
+  // Carga inicial de médicos
   useEffect(() => {
-    Promise.all([
-      api.get<Doctor[]>('/doctors').catch(() => ({ data: [] as Doctor[] })),
-      api.get<Patient[]>('/patients').catch(() => ({ data: [] as Patient[] })),
-    ]).then(([dr, pt]) => {
-      setDoctors(dr.data);
-      setPatients(pt.data);
-      if (dr.data.length > 0) setSelectedDoctorId((cur) => cur || dr.data[0].id);
-    });
+    api
+      .get<Doctor[]>('/doctors')
+      .then((dr) => {
+        setDoctors(dr.data);
+        if (dr.data.length > 0) setSelectedDoctorId((cur) => cur || dr.data[0].id);
+      })
+      .catch(() => setDoctors([]));
   }, []);
 
   const fetchAppointments = useCallback(async () => {
@@ -164,7 +162,6 @@ export function AdminAgendaPage() {
       {modal === 'new' && selectedDoctor && (
         <NewAppointmentModal
           doctors={doctors}
-          patients={patients}
           defaultDoctorId={selectedDoctorId}
           defaultDate={date}
           onClose={() => setModal(null)}
@@ -174,7 +171,6 @@ export function AdminAgendaPage() {
       {modal === 'walkin' && (
         <WalkinModal
           doctors={doctors}
-          patients={patients}
           defaultDoctorId={selectedDoctorId}
           onClose={() => setModal(null)}
           onCreated={handleCreated}
